@@ -1,124 +1,251 @@
-[//]: # (Image References)
+# AI-Dermotologist
 
-[image1]: ./images/skin_disease_classes.png "Skin Disease Classes"
-[image2]: ./images/cat_1.jpeg "Category 1 Rankings"
-[image3]: ./images/cat_2.jpeg "Category 2 Rankings"
-[image4]: ./images/cat_3.png "Category 3 Rankings"
-[image5]: ./images/sample_ROC_curve.png "Sample ROC curve"
-[image6]: ./images/sample_confusion_matrix.png "Sample confusion matrix"
+This is a mini project that aims to build a AI classifier for deadly **skin cancer diagnose**. 
 
-# Dermatologist AI
+The ultimate goal is distinguish **maglignant** [Melanoma](https://www.skincancer.org/skin-cancer-information/melanoma) (a.k.a black cancer, which is one of the most deadly cancer with only 15%-20% of survival rate) from **benign lesions** such as [nevus](http://missinglink.ucsf.edu/lm/dermatologyglossary/nevus.html) and [seborrheic keratoses](https://www.aad.org/public/diseases/bumps-and-growths/seborrheic-keratoses). 
 
-## Introduction
+The big motivation behind this project is that if Melanoma could be detected in its *early stage*, chances of cure will be much more optimistic. However, human dermotologists are not super accurate with this diagnose and there is a shortage per capita of them. 
 
-In this mini project, you will design an algorithm that can visually diagnose [melanoma](http://www.skincancer.org/skin-cancer-information/melanoma), the deadliest form of skin cancer.  In particular, your algorithm will distinguish this malignant skin tumor from two types of benign lesions ([nevi](http://missinglink.ucsf.edu/lm/dermatologyglossary/nevus.html) and [seborrheic keratoses](https://www.aad.org/public/diseases/bumps-and-growths/seborrheic-keratoses)). 
+The training, validation and test data of this project are pulled from the [ICIC 2017: Skin Lesion Analysis Towards Melanoma Detection](https://challenge.kitware.com/#challenge/583f126bcad3a51cc66c8d9a) challenge. In addition, this [paper](https://arxiv.org/pdf/1710.05006.pdf) provides a very comprehensive review of the state of the art approaches. 
 
-The data and objective are pulled from the [2017 ISIC Challenge on Skin Lesion Analysis Towards Melanoma Detection](https://challenge.kitware.com/#challenge/583f126bcad3a51cc66c8d9a).  As part of the challenge, participants were tasked to design an algorithm to diagnose skin lesion images as one of three different skin diseases (melanoma, nevus, or seborrheic keratosis).  In this project, you will create a model to generate your own predictions.
+Many of the techniques implemented in this notebook are inspired by the **[RECOD Titans at ISIC Chanlenge paper](https://arxiv.org/pdf/1710.05006.pdf)**(by Menegola A, Tavares J, Fornaciali M, Li LT, Avila S, Valle E. ) including *model selections, data augmentations, evaluation and SVM meta-learner.*
 
-![Skin Disease Classes][image1]
+Here are some samples of our data where we would find the it’s pretty hard for human eyes to classify which type is benign which is maglignant:
 
-## Getting Started
+![sample_images](images/sample_images.png)
 
-1. Clone the [repository](https://github.com/udacity/dermatologist-ai) and create a `data/` folder to hold the dataset of skin images.  
-```text
-git clone https://github.com/udacity/dermatologist-ai.git
-mkdir data; cd data
-```
-2. Create folders to hold the training, validation, and test images.
-```text
-mkdir train; mkdir valid; mkdir test
-```
-3. Download and unzip the [training data](https://s3-us-west-1.amazonaws.com/udacity-dlnfd/datasets/skin-cancer/train.zip) (5.3 GB).
+## Model architecture overview
 
-4. Download and unzip the [validation data](https://s3-us-west-1.amazonaws.com/udacity-dlnfd/datasets/skin-cancer/valid.zip) (824.5 MB).
 
-5. Download and unzip the [test data](https://s3-us-west-1.amazonaws.com/udacity-dlnfd/datasets/skin-cancer/test.zip) (5.1 GB).
 
-6. Place the training, validation, and test images in the `data/` folder, at `data/train/`, `data/valid/`, and `data/test/`, respectively.  Each folder should contain three sub-folders (`melanoma/`, `nevus/`, `seborrheic_keratosis/`), each containing representative images from one of the three image classes.
 
-You are free to use any coding environment of your choice to solve this mini project!  In order to rank your results, you need only use a pipeline that culminates in a CSV file containing your test predictions.
 
-## Create a Model
+This Repo aim to demonstrate the effectiveness of modern vision deep learning techniques applied as compared to the state-of-the-art in 2017 when this dataset come out. At the same, it can seen as a guideline to use **FastAI** library as some of the important ideology of the creator of **FastAI**‘s will be explained. (Big ups.)
 
-Use the training and validation data to train a model that can distinguish between the three different image classes.  (_After training, you will use the test images to gauge the performance of your model._)
+### Results
 
-If you would like to read more about some of the algorithms that were successful in this competition, please read [this article](https://arxiv.org/pdf/1710.05006.pdf) that discusses some of the best approaches.  A few of the corresponding research papers appear below.
-- Matsunaga K, Hamada A, Minagawa A, Koga H. [“Image Classification of Melanoma, Nevus and Seborrheic Keratosis by Deep Neural Network Ensemble”](https://arxiv.org/ftp/arxiv/papers/1703/1703.03108.pdf). International Skin Imaging Collaboration (ISIC) 2017 Challenge at the International Symposium on Biomedical Imaging (ISBI). 
-- Daz IG. [“Incorporating the Knowledge of Dermatologists to Convolutional Neural Networks for the Diagnosis of Skin Lesions”](https://arxiv.org/pdf/1703.01976.pdf). International Skin Imaging Collaboration (ISIC) 2017 Challenge at the International Symposium on Biomedical Imaging (ISBI). ([**github**](https://github.com/igondia/matconvnet-dermoscopy))
-- Menegola A, Tavares J, Fornaciali M, Li LT, Avila S, Valle E. [“RECOD Titans at ISIC Challenge 2017”](https://arxiv.org/abs/1703.04819). International Skin Imaging Collaboration (ISIC)  2017 Challenge at the International Symposium on Biomedical Imaging (ISBI). ([**github**](https://github.com/learningtitans/isbi2017-part3))
+##### Udacity
 
-While the original challenge provided additional data (such as the gender and age of the patients), we only provide the image data to you.  If you would like to download this additional patient data, you may do so at the competition [website](https://challenge.kitware.com/#phase/5840f53ccad3a51cc66c8dab).
+I found the first bench mark score on [Udacity Git repo](https://github.com/udacity/dermatologist-ai):
 
-All three of the above teams increased the number of images in the training set with additional data sources.  If you'd like to expand your training set, you are encouraged to begin with the [ISIC Archive](https://isic-archive.com/#images).
+![Udacity_score](images/Udacity_score.png)
 
-## Evaluation
+##### Best performing model
 
-Inspired by the ISIC challenge, your algorithm will be ranked according to three separate categories.
+Second one is the best performing model that I can find from [online](https://github.com/macgebi/udacity-dermatologist-ai):
 
-#### Category 1: ROC AUC for Melanoma Classification
+![Score_best_perform](images/Score_best_perform.png)
 
-In the first category, we will gauge the ability of your CNN to distinguish between malignant melanoma and the benign skin lesions (nevus, seborrheic keratosis) by calculating the area under the receiver operating characteristic curve ([ROC AUC](http://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html)) corresponding to this binary classification task.
+##### Our score
 
-If you are unfamiliar with ROC (Receiver Operating Characteristic) curves and would like to learn more, you can check out the documentation in [scikit-learn](http://scikit-learn.org/stable/auto_examples/model_selection/plot_roc.html#sphx-glr-auto-examples-model-selection-plot-roc-py) or read [this Wikipedia article](https://en.wikipedia.org/wiki/Receiver_operating_characteristic).
+Finally, this what we are able to achieve with model stacking:
 
-The top scores (from the ISIC competition) in this category can be found in the image below.
+![Our_score](images/Our_Score.png)
 
-![Category 1 Rankings][image2]
+Evidently, with the more modern techniques, we are able to push the performance much further. 
 
-#### Category 2: ROC AUC for Melanocytic Classification
+Let have a look into the technique we have used to achieve this result.
 
-All of the skin lesions that we will examine are caused by abnormal growth of either [melanocytes](https://en.wikipedia.org/wiki/Melanocyte) or [keratinocytes](https://en.wikipedia.org/wiki/Keratinocyte), which are two different types of epidermal skin cells.  Melanomas and nevi are derived from melanocytes, whereas seborrheic keratoses are derived from keratinocytes. 
+## A walk through of the code
 
-In the second category, we will test the ability of your CNN to distinuish between melanocytic and keratinocytic skin lesions by calculating the area under the receiver operating characteristic curve ([ROC AUC](http://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html)) corresponding to this binary classification task.
+This section provides a high-level overview of the pipeline of this project as well as some of the important choice of parameters & tricks involved. Let’s begin:
 
-The top scores in this category (from the ISIC competition) can be found in the image below.
+### Deep learning framework
 
-![Category 2 Rankings][image3]
+Initially, I started this project with **PyTorch** because of the flexibility it offers as well as my familiarity. Half way through the project ( around the time building the second base-model), I stumbled upon the **Fastai** library and I got superior performance in much shorter time with their tools.
 
-#### Category 3: Mean ROC AUC
+This README.md will explain the main technique I have used to solve the *AI-Dermatologist* problem. At the same time, I might go out of the way and introduce some theories behind the code implementation of the fantastic **Fastai** library that made this all possible.
 
-In the third category, we will take the average of the ROC AUC values from the first two categories.
+### sklearn
 
-The top scores in this category (from the ISIC competition) can be found in the image below.
+This is an obvious choice for a data-science project for data manipulation. It plays an important role in this project as we use sklearn to build our *stacking model* and *performance evaluation*.
 
-![Category 3 Rankings][image4]
+### Pandas, hyperopt, numpy, matplotlib
 
-## Getting your Results
+Very standard libraries to use. We will get into details later.
 
-Once you have trained your model, create a CSV file to store your test predictions.  Your file should have exactly 600 rows, each corresponding to a different test image, **plus** a header row.  You can find an example submission file (`sample_submission.csv`) in the repository.
+### Pipeline
 
-Your file should have exactly 3 columns:
-- `Id` - the file names of the test images (in the **same** order as the sample submission file)
-- `task_1` - the model's predicted probability that the image (at the path in `Id`) depicts melanoma
-- `task_2` - the model's predicted probability that the image (at the path in `Id`) depicts seborrheic keratosis
+Create our dataset $\rightarrow$ data augmentation $\rightarrow$ selecting and training base-models $\rightarrow$ examine different meta-learners $\rightarrow$ selecting meta-learning and perform hyper-parameter tuning $\rightarrow$ fit and predict $\rightarrow$ apply metrics to evaluate and then repeat from step 2 
 
-Once the CSV file is obtained, you will use the `get_results.py` file to score your submission.  To set up the environment to run this file, you need to create (and activate) an environment with Python 3.5 and a few pip-installable packages:
-```text
-conda create --name derm-ai python=3.5
-source activate derm-ai
-pip install -r requirements.txt
+There is actually a trick we have applied to our data which is introduced by *Jeremy Howard* in his amazing [course](https://course.fast.ai/videos/?lesson=2). The same data was used effectively twice in the training which we will see later in the training section.
+
+### Data preparation 
+
+The data was pulled from [ICIC 2017: Skin Lesion Analysis Towards Melanoma Detection](https://challenge.kitware.com/#challenge/583f126bcad3a51cc66c8d9a) challenge. Fastai library provides a handy feature that can help us to create a [databunch](https://docs.fast.ai/basic_data.html#DataBunch) which can be readily used by the model as data-loader as well as other visualisation functions.
+
+Trick 1: we would create **2** data-bunches. One with lower resolution, and one with higher resolutions. As we will see later, they will be used in different training stages. This trick is repeated used throughout the training process for each base vision model we aim to train.
+
+```python
+path = 'data'
+bs = 64
+data = ImageDataBunch.from_folder(path, ds_tfms=tfms, size=114, bs=bs
+                            ).normalize(imagenet_stats)
+bs = 32
+data2 = ImageDataBunch.from_folder(path, ds_tfms=tfms, size=224, bs=bs
+                            ).normalize(imagenet_stats)
 ```
 
-Once you have set up the environment, run the following command to see how the sample submission performed:
-```text
-python get_results.py sample_predictions.csv
+We also need to specify the transformations being done to our images as the data augmentation. 
+
+```python
+# We set max_warp to 0.0 since we don't have warping in this case
+
+tfms = get_transforms(flip_vert=True, max_rotate=180.0,max_lighting=0.2, max_zoom=1.2, max_warp=0.0)
 ```
 
-Check the terminal output for the scores obtained in the three categories:
-```text
-Category 1 Score: 0.526
-Category 2 Score: 0.606
-Category 3 Score: 0.566
+#### Now let’s take a look at what we are dealing with
+
+```python
+data.show_batch(rows=4, figsize=(10,10))
 ```
 
-The corresponding **ROC curves** appear in a pop-up window, along with the **confusion matrix** corresponding to melanoma classification.  
 
-![Sample ROC curve][image5]
-![Sample confusion matrix][image6]
 
-The code for generating the confusion matrix assumes that the threshold for classifying melanoma is set to 0.5.  To change this threshold, you need only supply an additional command-line argument when calling the `get_results.py` file.  For instance, to set the threshold at 0.4, you need only run:
-```text
-python get_results.py sample_predictions.csv 0.4
+![cancer_show_batch](images/cancer_show_batch.png)
+
+### Transfer learning
+
+The ideology of **Fastai** is to apply transfer learning to every model that we use if possible. “why training from scratch if you can use a pre-trained model?” - Jeremy Howard
+
+This has to do a lot with why I was able to achieve superior result as compared to building a vision model with PyTorch myself even though the two approach used the same base-architecture (ResNet 34). Of course, there are other techniques that contributed positively to the result which are applied by **Fastai** by default. Transfer learning is the big one as it greatly reduces training time and we have a good chance to train towards convergence.
+
+At the first glance, it might not seem to be a sensible thing to do that use a CNN trained to recognising common object (such as cats and tables) to classify skin cancers. **However, in reality, the *weights* being trained to recognise common objects bring us much closer to classify skin cancer as compared to random weight.** In short, no matter in solving vision problems or NLP problem, a pre-trained model on general data should give us a positive leap towards the convergence on our dataset.
+
+The model training strategy is as following:
+
+* select 5 potential base-model for the dataset depending on intuitions on their suitability on this project scale.
+
+* pre-train all of these model on COCO dataset
+* train these 5 model individually to the best we can on our skin cancer dataset
+* compare the commonly used machine learning model for stacking meta-learner
+* identify a good meta-learner and do a hyper-parameter tuning on our dataset with 5-fold cross-validation
+* train-fit-predict-evaluate
+
+### Individual vision model training with FastAI
+
+In standard **FastAI** pipeline, we can conveniently create a vision model with the base-architecture that we fancy, pre-train with imagenet data, associate with the `databunch` with the right data augmentation we just created, specify the monitoring metrics. All of the above done in one line, **FastAI** takes care of most of the dirty work for us:
+
+```python
+learn = cnn_learn(data, models.resnet34, metrics = accuracy)
 ```
 
-To test **your own** submission, change the code to instead include the path to **your** CSV file.
+#### Stage-1
+
+Setting a good *learning_rate* is just crucial for training a good neural network model and it usually trick to find out the right *learning_rate* with just human intuition. **FastAI** also provide us a handy function that let us to take a peek at what might be a good candidate and make a educated decision.
+
+```python
+learn.lr_find()
+learn.recorder.plot()
+```
+
+![learn_recorder_plot](images/learn_recorder_plot.png)
+
+What we have to do at this point is to pick the point that has the steepest downwards slope. In this case, I would say `1e-03`.
+
+```python
+lr = 1e-3
+learn.fit_one_cycle(5, slice(lr))
+```
+
+![training_stage_1](images/training_stage_1.png)
+
+PS: what learn.[fit_one_cycle](https://docs.fast.ai/basic_train.html#fit_one_cycle) does is essentially a *learning_rate* and *momentum* scheduler which allow our network having a easier time converging to the local minima.  In short, the `learning_rate` we specified in `learn.fit_one_cycle` is actually the peak *learning_rate* and **FastAI** will figure out the rest for us.
+
+![fit_one_cycle](images/fit_one_cycle.png)
+
+#### Stage-2
+
+Note that by default, following the steps we have done above **FastAI** would train the model with all the weights frozen in the base-architecture (so that we are only training the *head* of the network for classification).
+
+In Stage-2, since we have a relatively reasonable *head* to start with, it’s a good time to *unfreeze* the *body* of the `ResNet34` and train the entire network:
+
+```python
+learn.unfreeze()
+learn.lr_find()
+learn.recorder.plot()
+```
+
+![Stage_2_training](images/Stage_2_training.png)
+
+The intuition to find the good learning_rate is slightly different than stage one. In addition, we will use different learning rate for different layers as we don’t want the bottom to go crazy during training. Pick a safe learning_rate far from up inclining slope in the first slot of the `slice()` and the second slot should be filled by a number in between `lr/10` and `lr/5` depending on intuition.
+
+````python
+learn.fit_one_cycle(5, max_lr=slice(1e-5, lr/5))
+````
+
+![stege_2](images/stege_2.png)
+
+As we can see, the network still trains compared to *stage-1*. However, it kind of plateaus after a while. So, is this the best we can do?
+
+Nope, this is where the second trick of *Jeremy Howard*‘s come in. Remember, when we create our `DataBunch` we actually create two versions. A high-resolution one and a low-resolution one. This is where they come into play. After *Stage-2* we have a model that’s pretty effective in classifying low-resolution images. What we can do at this point with our limited data is to train our model again, this time, with the high-resolution images. This might seem dumb since they actually represent the same thing. However, in the pixel level, the latter contains more information for our model to learn. Let’s seem what happens.
+
+#### Stage-3
+
+Here we would switch our `data_loader` and perform the training with frozen *body* weights first.
+
+```python
+learn.data = data2
+learn.freeze()
+learn.lr_find()
+learn.recorder.plot()
+```
+
+![stage-3-learning-rate](images/stage-3-learning-rate.png)
+
+Again `1e-03` looks like a good *learning_rate* to start with.
+
+```python
+lr = 1e-3
+learn.fit_one_cycle(5, lr)
+```
+
+![training-stage-3](images/training-stage-3.png)
+
+Like magic, our accuracy start to increase again.
+
+We can also take a look at the losses when we feel like to check for any signs of over-fitting or under-fitting.
+
+```python
+learn.recorder.plot_losses()
+```
+
+![losses-at-stage-3](images/losses-at-stage-3.png)
+
+PS: the blue *training loss* is a good looking one. What we are looking for in a “healthy” training_loss is one that goes down bumps up in the middle and slowly decrease again. This phenomenon has to the with how **FasiAI** schedule the *learning_rate*.
+
+#### Stage-4
+
+Now you can guess what we need to do next. Yes, `unfreeze()` the weight and train the entire network.
+
+```python
+learn.unfreeze()
+learn.lr_find()
+learn.recorder.plot()
+```
+
+![learning-rate-stage-4](images/learning-rate-stage-4.png)
+
+Time to pick our *learning_rates* again. After trial & error, I found that `1e-5/2` is a good *learning_rate* to use that improve the network a lot without risking diverging.
+
+```python
+learn.fit_one_cylce(5, slice(1e-5/2, lr/10))
+learn.recorder.plot_losses()
+learn.save('resnet34-stage-4')
+```
+
+![training-stage-4](images/training-stage-4.png)
+
+![losses-stage-4](images/losses-stage-4.png)
+
+There! We have over 80% accuracy at correctly classify skin cancer from looking at images.
+
+FYI, the model accuracy to train a `ResNet34` from scratch I was able to achieve is around 70%. After reaching 70%, the model would start to struggle with convergence and start to over-fit.
+
+ Now, let’s take a look at the performance of our first model on the **validation data-set**:
+
+```python
+learn.show_results(ds_type=DatasetType.Train, rows=4, figsize=(8,10))
+```
+
+![validation-resnet-34](images/validation-resnet-34.png)
