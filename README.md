@@ -16,13 +16,17 @@ Here are some samples of our data where we would find the it’s pretty hard for
 
 ## Model architecture overview
 
+![Stack-presentation-Dermotologist](images/Stack-presentation-Dermotologist.png)
 
+Imagine that each vision classification model we build is a doctor who can diagnose skin cancer. However, no matter how hard he tries to improve himself, he can only be so good (never 100% accurate). In the reality, we usually would have a “panel” of such doctors (each could be especially good at diagnosing certain types) to share their opinions and finally **vote** for a final decision. What could we do better?
 
+Since each “doctor” is potentially good with certain types of skin cancer, it would make sense to value one “doctor’s” opinion than another (put different weights on their output) depending on the skin image we get. In machine learning, an good way to realise this strategy is to use a **meta-learner** that takes “doctors’” outputs as input and the ground-truth as label so that the **meta-learner** is able to learn from the “doctors” behaviours. Hence, a more educated decision could be made resulting in an accuracy higher than any individual “doctor”. For more info on **Ensemble learning** please refer to this fantastic [Medium post](https://towardsdatascience.com/ensemble-methods-bagging-boosting-and-stacking-c9214a10a205) where *bagging* and *boosting* are also introduced.
 
-
-This Repo aim to demonstrate the effectiveness of modern vision deep learning techniques applied as compared to the state-of-the-art in 2017 when this dataset come out. At the same, it can seen as a guideline to use **FastAI** library as some of the important ideology of the creator of **FastAI**‘s will be explained. (Big ups.)
+This Repo aim to demonstrate the effectiveness of modern vision deep learning techniques applied as compared to the state-of-the-art in 2017 when this dataset come out. At the same, it can seen as a guideline to use **FastAI** library as some of the important ideology of the creators of **FastAI**‘s will be explained. (Big ups.)
 
 ### Results
+
+The metrics used in the competition is not simply accuracy but [*ORC AUC* ](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html) for each category. In order to compare to the performance with the competition participant, here we would compute the same metrics.
 
 ##### Udacity
 
@@ -249,3 +253,247 @@ learn.show_results(ds_type=DatasetType.Train, rows=4, figsize=(8,10))
 ```
 
 ![validation-resnet-34](images/validation-resnet-34.png)
+
+## Building other models for ensemble learning
+
+Now that we have a well-trained `ResNet34`, let’s do the same the other base-learners that we fancy.
+
+In this project, we picked ResNet34, ResNet50, ResNet101, DenseNet169, and the vintage VGG-16. These networks varies from depth, complexity and capacity to learn which makes it a good choice to incorporate into ensemble learning. After training them to the best of my effort, I got my base-line model accuracy as follows:
+
+* ResNet34		-   `80.67%`
+* ResNet50        -   `82.67%`
+* ResNet10        -   `81.33%`
+* DenseNet169 -   `78.00%`
+* VGG16             -   `80.67%`
+
+## Model stacking
+
+Now, here comes the exciting part. We have 5 model with different weights and accuracy. What happens if we don’t use just one of the models but ask all of their opinions.
+
+To select the best learner for our task, let’s go greedy here.
+
+Get 20 potential candidates from commonly used machine learning methods. Test their performance with 60% data for training 30% data for validation and 10% set aside.
+
+```python
+MLA = [
+#     Ensemble Methods
+    ensemble.AdaBoostClassifier(),
+    ensemble.BaggingClassifier(),
+    ensemble.ExtraTreesClassifier(n_estimators=100),
+    ensemble.GradientBoostingClassifier(),
+    ensemble.RandomForestClassifier(n_estimators=100),
+
+#     Gaussian Processes
+    gaussian_process.GaussianProcessClassifier(),
+    
+#     GLM
+    linear_model.LogisticRegression(),
+    linear_model.PassiveAggressiveClassifier(),
+    linear_model.RidgeClassifier(),
+    linear_model.SGDClassifier(),
+    linear_model.Perceptron(),
+    
+#     Navies Bayes
+    naive_bayes.BernoulliNB(),
+    naive_bayes.GaussianNB(),
+    
+#     Nearest Neighbor
+    neighbors.KNeighborsClassifier(),
+    
+    #SVM
+    svm.SVC(probability=True),
+    svm.LinearSVC(),
+    
+#     Trees    
+    tree.DecisionTreeClassifier(),
+    tree.ExtraTreeClassifier(),
+    
+    #Discriminant Analysis
+    discriminant_analysis.LinearDiscriminantAnalysis(),
+    discriminant_analysis.QuadraticDiscriminantAnalysis(),
+
+    
+    #xgboost: http://xgboost.readthedocs.io/en/latest/model.html
+    XGBClassifier(learning_rate=0.01, gamma=0.1, max_depth=2, n_estimators=500, min_child_weight=1, seed=0)    
+    ]
+```
+
+```python
+row_index = 0
+for alg in MLA:
+
+    #set name and parameters
+    MLA_name = alg.__class__.__name__
+    MLA_compare.loc[row_index, 'MLA Name'] = MLA_name
+    MLA_compare.loc[row_index, 'MLA Parameters'] = str(alg.get_params())
+    print(f'training etimator {row_index}, {MLA_name}')
+    #score model with cross validation: http://scikit-learn.org/stable/modules/generated/sklearn.model_selection.cross_validate.html#sklearn.model_selection.cross_validate
+    cv_results = model_selection.cross_validate(alg, train_df, train_y[0], cv  = cv_split,scoring='accuracy', return_train_score=True)
+
+    MLA_compare.loc[row_index, 'MLA Time'] = cv_results['fit_time'].mean()
+    MLA_compare.loc[row_index, 'MLA Train Accuracy Mean'] = cv_results['train_score'].mean()
+    MLA_compare.loc[row_index, 'MLA Test Accuracy Mean'] = cv_results['test_score'].mean()   
+    #if this is a non-bias random sample, then +/-3 standard deviations (std) from the mean, should statistically capture 99.7% of the subsets
+    MLA_compare.loc[row_index, 'MLA Test Accuracy 3*STD'] = cv_results['test_score'].std()*3   #let's know the worst that can happen!
+    
+    row_index+=1
+
+#print and sort table: https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.sort_values.html
+MLA_compare.sort_values(by = ['MLA Test Accuracy Mean'], ascending = False, inplace = True)
+MLA_compare
+```
+
+Here are the top 5 best performing models:
+
+![top-5-meta-learner](images/top-5-meta-learner.png)
+
+Though *Ridge classifier* also has quite good performance along with XGBoost. We would be using XGBoost here as it’s usually more robust and has high potential when we perform *hyper-parameter tuning* later.
+
+#### Hyper-parameter tuning
+
+Okay. What do we have right now: 5 fully trained base-line model(CNNs) and we have selected a suitable *meta-learner* among a pool of 20 learners (XGBoost).
+
+The next step is fine-tune the *meta-learner* so that it has its best performance and then *fit* it on our data.
+
+We will be using `hyperopt` for *hyper-parameter tuning* in this project as XGBoost has quite many hyper-parameters to tune and `hyperopt` is a *Bayesian* method that computes faster than *grid search* or *random search*.
+
+```python
+from hyperopt import space_eval
+class Bayesian_Optimizer:
+    def __init__(self, clf, param_space, scoring_metrics ='accuracy', 
+                 max_eval = 100 , cv = cv ,train_set=train_df, train_y = train_y[0]):
+        self.clf = clf
+        self.param_space = param_space
+        self.max_eval = max_eval
+        self.train_set = train_set
+        self.train_y = train_y
+        self.scoring_metrics = scoring_metrics
+        self.cv = cv
+        self.epoch = 1
+        
+    def hyperopt_run(self, space):
+        model = self.clf(**space)
+        score = cross_val_score(model,
+                                self.train_set, 
+                                self.train_y, 
+                                cv=5,
+                                scoring=self.scoring_metrics                     
+                               )
+        print("Epoch : {}: {} Score {:.3f} params {}".format(self.epoch, self.scoring_metrics,score.mean(), space))
+        self.epoch+=1
+        return {'loss':(1 - score.mean()), 'status': STATUS_OK}
+    def HP_optimization(self):
+        trials = Trials()
+        best = fmin(fn=self.hyperopt_run,
+                    space=self.param_space,
+                    algo=tpe.suggest,
+                    max_evals=self.max_eval
+                    )
+        best_option = space_eval(self.param_space, best)
+        self.best_option = best_option
+        print('the best option is:', best_option)
+        clf = self.clf(**self.best_option)
+        final_score = cross_val_score(clf,
+                                      self.train_set,
+                                      self.train_y,
+                                      cv  = self.cv,
+                                      scoring=self.scoring_metrics                            
+                               )
+        print('Cooresponding loss:', final_score.mean(), sep='\n')
+```
+
+Eventually, we have:
+
+![XGB-best-option](images/XGB-best-option.png)
+
+### Train the meta-learner
+
+Finally, we train our meta-learner with the new-found “best” hyper-parameters.
+
+```python
+from sklearn.metrics import accuracy_score
+def get_accuracy(model):
+#     print(f'the model is {model}\n')
+    model.fit(train_df,train_y[0])
+    preds = model.predict(valid_df)
+    
+    return accuracy_score(preds, ground_truth)
+```
+
+![final-prediction](images/final-prediction.png)
+
+As we expected, the meta-learner has a better performance than any of our base-models.
+
+## Compute the ROC_AUC
+
+Lastly, in order to compare to the methods of the participant in the competition, we need to compute the `roc_auc_score` with `sklearn` and then plot out the graph:
+
+```python
+from itertools import cycle
+from sklearn.multiclass import OneVsRestClassifier
+from scipy import interp
+from sklearn.metrics import roc_curve, auc
+
+# Compute ROC curve and ROC area for each class
+fpr = dict()
+tpr = dict()
+roc_auc = dict()
+for i in range(data.c):
+    fpr[i], tpr[i], _ = roc_curve(train_y_np[:,i], preds_np[:,i])
+    roc_auc[i] = auc(fpr[i], tpr[i])
+# Compute micro-average ROC curve and ROC are
+fpr["micro"], tpr["micro"], _ =roc_curve(train_y_np.ravel(), preds_np.ravel())
+roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+```
+
+```python
+# Compute macro-average ROC curve and ROC area
+lw = 2
+# First aggregate all false positive rates
+all_fpr = np.unique(np.concatenate([fpr[i] for i in range(data.c)]))
+
+# Then interpolate all ROC curves at this points
+mean_tpr = np.zeros_like(all_fpr)
+for i in range(3):
+    mean_tpr += interp(all_fpr, fpr[i], tpr[i])
+
+# Finally average it and compute AUC
+mean_tpr /= data.c
+
+fpr["macro"] = all_fpr
+tpr["macro"] = mean_tpr
+roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
+for i in range(3):
+    print(f"Category {i+1} Score: {roc_auc[i]:0.2f}")
+
+# Plot all ROC curves
+plt.figure()
+plt.plot(fpr["micro"], tpr["micro"],
+         label='micro-average ROC curve (area = {0:0.2f})'
+               ''.format(roc_auc["micro"]),
+         color='deeppink', linestyle=':', linewidth=4)
+
+plt.plot(fpr["macro"], tpr["macro"],
+         label='macro-average ROC curve (area = {0:0.2f})'
+               ''.format(roc_auc["macro"]),
+         color='navy', linestyle=':', linewidth=4)
+
+colors = cycle(['aqua', 'darkorange', 'cornflowerblue'])
+for i, color in zip(range(3), colors):
+    plt.plot(fpr[i], tpr[i], color=color, lw=lw,
+             label='ROC curve of class {0} (area = {1:0.2f})'
+             ''.format(i+1, roc_auc[i]))
+
+plt.plot([0, 1], [0, 1], 'k--', lw=lw)
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic curve for 3 categories')
+plt.legend(loc="lower right")
+plt.show()
+```
+
+![ROC_AUC_Curve](images/ROC_AUC_Curve.png)
+
+There we have it.
