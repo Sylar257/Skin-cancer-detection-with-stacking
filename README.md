@@ -1,4 +1,4 @@
-# AI-Dermotologist
+# AI-Dermatologist
 
 This is a mini project that aims to build a AI classifier for deadly **skin cancer diagnose**. 
 
